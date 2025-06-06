@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Run frontend unit tests
+        working-directory: frontend
+        run: npm test -- --runInBand
+      - name: Build Docker images
+        run: docker-compose build
+      - name: Start containers
+        run: docker-compose up -d
+      - name: Wait for backend
+        run: |
+          for i in {1..10}; do
+            curl -s http://localhost:5000/api/hello && break || sleep 3
+          done
+      - name: Test backend endpoint
+        run: curl -s http://localhost:5000/api/hello | grep -q 'Hello from Flask backend'
+      - name: Test frontend endpoint
+        run: curl -s http://localhost:5173 | grep -q 'RAG Pipeline Frontend'
+      - name: Stop containers
+        run: docker-compose down
