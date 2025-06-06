@@ -1,15 +1,14 @@
-FROM ubuntu:22.04
+FROM node:18-alpine
 
 WORKDIR /app
 
-# Install Node.js and npm
-RUN apt-get update && \
-    apt-get install -y nodejs npm && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
+# Copy package files
 COPY package*.json ./
+
+# Install dependencies
 RUN npm install
 
+# Copy source code
 COPY . .
 
 EXPOSE 5173
