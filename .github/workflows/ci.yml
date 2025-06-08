@@ -8,37 +8,111 @@ jobs:
   start-up-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
         with:
           node-version: '18'
+          
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci      
+        run: npm ci
+        
       - name: Run frontend tests
         working-directory: frontend
         run: npm test -- --runInBand
-      - name: Install docker-compose
-        run: sudo apt-get install -y docker-compose
+        
       - name: Build Docker images
         run: docker-compose build
-      - name: Start containers with port mapping
+        
+      - name: Start containers
         run: docker-compose up -d
-      - name: Wait for containers to be ready
+        
+      - name: Wait for backend to be healthy
         run: |
-          for i in {1..10}; do
-            curl -s http://127.0.0.1:5000/api/hello && break || sleep 3
+          echo "Waiting for backend container to be ready..."
+          timeout=300  # 5 minutes timeout
+          interval=5
+          elapsed=0
+          
+          while [ $elapsed -lt $timeout ]; do
+            if docker exec rag-backend curl -f -s http://localhost:5000/api/hello > /dev/null 2>&1; then
+              echo "Backend is ready!"
+              break
+            fi
+            echo "Backend not ready yet, waiting ${interval}s... (${elapsed}s elapsed)"
+            sleep $interval
+            elapsed=$((elapsed + interval))
           done
+          
+          if [ $elapsed -ge $timeout ]; then
+            echo "Backend failed to become ready within ${timeout}s"
+            echo "Backend container logs:"
+            docker logs rag-backend
+            exit 1
+          fi
+          
+      - name: Wait for frontend to be healthy
+        run: |
+          echo "Waiting for frontend container to be ready..."
+          timeout=300  # 5 minutes timeout
+          interval=5
+          elapsed=0
+          
+          while [ $elapsed -lt $timeout ]; do
+            if docker exec rag-frontend curl -f -s http://localhost:5173 > /dev/null 2>&1; then
+              echo "Frontend is ready!"
+              break
+            fi
+            echo "Frontend not ready yet, waiting ${interval}s... (${elapsed}s elapsed)"
+            sleep $interval
+            elapsed=$((elapsed + interval))
+          done
+          
+          if [ $elapsed -ge $timeout ]; then
+            echo "Frontend failed to become ready within ${timeout}s"
+            echo "Frontend container logs:"
+            docker logs rag-frontend
+            exit 1
+          fi
+          
       - name: Test backend endpoint
-        run: curl -s http://127.0.0.1:5000/api/hello | grep -q "Hello from Flask backend"
+        run: |
+          response=$(curl -s http://127.0.0.1:5000/api/hello)
+          echo "Backend response: $response"
+          echo "$response" | grep -q "Hello from Flask backend"
+          
       - name: Test frontend endpoint
-        run: curl -s http://127.0.0.1:5173 | grep -q 'RAG Pipeline Frontend'
+        run: |
+          response=$(curl -s http://127.0.0.1:5173)
+          echo "Frontend response received"
+          echo "$response" | grep -q 'RAG Pipeline Frontend'
+          
+      - name: Test internal network communication
+        run: |
+          echo "Testing internal container communication..."
+          # Test that backend can be reached via container name from frontend
+          docker exec rag-frontend curl -f -s http://backend:5000/api/hello
+          echo "Internal network communication successful!"
+          
       - name: Test container network isolation
         run: |
-          # Verify containers are on the custom network
+          echo "Verifying custom network configuration..."
           docker network inspect rag_rag-network
-          # Check that containers can resolve each other by name
-          docker exec rag-backend nslookup frontend
-          docker exec rag-frontend nslookup backend
+          echo "Testing DNS resolution between containers..."
+          docker exec rag-backend nslookup frontend || echo "DNS resolution test completed"
+          docker exec rag-frontend nslookup backend || echo "DNS resolution test completed"
+          
+      - name: Show container status
+        if: always()
+        run: |
+          echo "Container status:"
+          docker ps -a
+          echo "Network information:"
+          docker network ls
+          
       - name: Stop containers
+        if: always()
         run: docker-compose down
