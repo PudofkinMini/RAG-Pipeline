@@ -23,7 +23,10 @@ jobs:
       - name: Run frontend tests
         working-directory: frontend
         run: npm test -- --runInBand
-        
+      
+      - name: Apt get docker-compose
+        run: sudo apt-get install docker-compose
+
       - name: Build Docker images
         run: docker-compose build
         
