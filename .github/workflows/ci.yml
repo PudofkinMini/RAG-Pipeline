@@ -22,10 +22,11 @@ jobs:
         run: sudo apt-get install -y docker-compose
       - name: Build Docker images
         run: docker-compose build
-      - name: Start containers
+      - name: Start containers with port mapping
         run: docker-compose up -d
       - name: Wait for containers to be ready
         run: |
+<<<<<<< HEAD
           # Wait for containers to start
           sleep 10
           # Check that containers are running
@@ -47,5 +48,14 @@ jobs:
           # Check that containers can resolve each other by name
           docker exec rag-backend nslookup frontend
           docker exec rag-frontend nslookup backend
+=======
+          for i in {1..10}; do
+            curl -s http://127.0.0.1:5000/api/hello && break || sleep 3
+          done
+      - name: Test backend endpoint
+        run: curl -s http://127.0.0.1:5000/api/hello | grep -q "Hello from Flask backend"
+      - name: Test frontend endpoint
+        run: curl -s http://127.0.0.1:5173 | grep -q 'RAG Pipeline Frontend'
+>>>>>>> ff408891c74245150ff22e9134aadadc960a2a79
       - name: Stop containers
         run: docker-compose down
