@@ -4,12 +4,13 @@ function App() {
   const [backendMessage, setBackendMessage] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
-
   useEffect(() => {
     const fetchBackendData = async () => {
       try {
         // Use environment variable for backend URL, fallback to localhost for development
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+        const backendUrl = (typeof window !== 'undefined' && (window as any).import?.meta?.env?.VITE_BACKEND_URL) ||
+                          process.env.VITE_BACKEND_URL || 
+                          'http://localhost:5000';
         const response = await fetch(`${backendUrl}/api/hello`);
         
         if (!response.ok) {
