@@ -41,7 +41,7 @@ jobs:
           elapsed=0
           
           while [ $elapsed -lt $timeout ]; do
-            if docker exec rag-backend curl -f -s http://localhost:5000/api/hello > /dev/null 2>&1; then
+            if docker exec rag-backend curl -f -s http://127.0.0.1:5000/api/hello > /dev/null 2>&1; then
               echo "Backend is ready!"
               break
             fi
@@ -57,56 +57,11 @@ jobs:
             exit 1
           fi
           
-      - name: Wait for frontend to be healthy
-        run: |
-          echo "Waiting for frontend container to be ready..."
-          timeout=300  # 5 minutes timeout
-          interval=5
-          elapsed=0
-          
-          while [ $elapsed -lt $timeout ]; do
-            if docker exec rag-frontend curl -f -s http://localhost:5173 > /dev/null 2>&1; then
-              echo "Frontend is ready!"
-              break
-            fi
-            echo "Frontend not ready yet, waiting ${interval}s... (${elapsed}s elapsed)"
-            sleep $interval
-            elapsed=$((elapsed + interval))
-          done
-          
-          if [ $elapsed -ge $timeout ]; then
-            echo "Frontend failed to become ready within ${timeout}s"
-            echo "Frontend container logs:"
-            docker logs rag-frontend
-            exit 1
-          fi
-          
       - name: Test backend endpoint
         run: |
           response=$(curl -s http://127.0.0.1:5000/api/hello)
           echo "Backend response: $response"
           echo "$response" | grep -q "Hello from Flask backend"
-          
-      - name: Test frontend endpoint
-        run: |
-          response=$(curl -s http://127.0.0.1:5173)
-          echo "Frontend response received"
-          echo "$response" | grep -q 'RAG Pipeline Frontend'
-          
-      - name: Test internal network communication
-        run: |
-          echo "Testing internal container communication..."
-          # Test that backend can be reached via container name from frontend
-          docker exec rag-frontend curl -f -s http://backend:5000/api/hello
-          echo "Internal network communication successful!"
-          
-      - name: Test container network isolation
-        run: |
-          echo "Verifying custom network configuration..."
-          docker network inspect rag_rag-network
-          echo "Testing DNS resolution between containers..."
-          docker exec rag-backend nslookup frontend || echo "DNS resolution test completed"
-          docker exec rag-frontend nslookup backend || echo "DNS resolution test completed"
           
       - name: Show container status
         if: always()

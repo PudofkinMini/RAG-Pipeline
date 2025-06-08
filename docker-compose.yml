@@ -5,29 +5,18 @@ services:
     build: ./backend
     container_name: rag-backend
     # No ports exposed to host - internal communication only
-    networks:
-      rag-network:
-        aliases:
-          - backend
     environment:
       - FLASK_ENV=production
+    ports:
+      - 5000:5000
       
   frontend:
     build: ./frontend
     container_name: rag-frontend
     # No ports exposed to host - internal communication only
-    networks:
-      rag-network:
-        aliases:
-          - frontend
     depends_on:
       - backend
     environment:
-      - VITE_BACKEND_URL=http://backend:5000  # Use service name for internal communication
-
-networks:
-  rag-network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
+      - VITE_BACKEND_URL=http://127.0.0.1:5000  # Use service name for internal communication
+    ports:
+      - 5173:5173
