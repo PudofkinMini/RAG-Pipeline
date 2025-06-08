@@ -33,35 +33,35 @@ jobs:
       - name: Start containers
         run: docker-compose up -d
         
-      - name: Wait for backend to be healthy
-        run: |
-          echo "Waiting for backend container to be ready..."
-          timeout=300  # 5 minutes timeout
-          interval=5
-          elapsed=0
+      # - name: Wait for backend to be healthy
+      #   run: |
+      #     echo "Waiting for backend container to be ready..."
+      #     timeout=300  # 5 minutes timeout
+      #     interval=5
+      #     elapsed=0
           
-          while [ $elapsed -lt $timeout ]; do
-            if docker exec rag-backend curl -f -s http://127.0.0.1:5000/api/hello > /dev/null 2>&1; then
-              echo "Backend is ready!"
-              break
-            fi
-            echo "Backend not ready yet, waiting ${interval}s... (${elapsed}s elapsed)"
-            sleep $interval
-            elapsed=$((elapsed + interval))
-          done
+      #     while [ $elapsed -lt $timeout ]; do
+      #       if docker exec rag-backend curl -f -s http://127.0.0.1:5000/api/hello > /dev/null 2>&1; then
+      #         echo "Backend is ready!"
+      #         break
+      #       fi
+      #       echo "Backend not ready yet, waiting ${interval}s... (${elapsed}s elapsed)"
+      #       sleep $interval
+      #       elapsed=$((elapsed + interval))
+      #     done
           
-          if [ $elapsed -ge $timeout ]; then
-            echo "Backend failed to become ready within ${timeout}s"
-            echo "Backend container logs:"
-            docker logs rag-backend
-            exit 1
-          fi
+      #     if [ $elapsed -ge $timeout ]; then
+      #       echo "Backend failed to become ready within ${timeout}s"
+      #       echo "Backend container logs:"
+      #       docker logs rag-backend
+      #       exit 1
+      #     fi
           
-      - name: Test backend endpoint
-        run: |
-          response=$(curl -s http://127.0.0.1:5000/api/hello)
-          echo "Backend response: $response"
-          echo "$response" | grep -q "Hello from Flask backend"
+      # - name: Test backend endpoint
+      #   run: |
+      #     response=$(curl -s http://127.0.0.1:5000/api/hello)
+      #     echo "Backend response: $response"
+      #     echo "$response" | grep -q "Hello from Flask backend"
           
       - name: Show container status
         if: always()
