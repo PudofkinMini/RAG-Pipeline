@@ -26,29 +26,6 @@ jobs:
         run: docker-compose up -d
       - name: Wait for containers to be ready
         run: |
-<<<<<<< HEAD
-          # Wait for containers to start
-          sleep 10
-          # Check that containers are running
-          docker ps
-      - name: Test internal network communication - backend health
-        run: |
-          # Test that backend is accessible from within the network
-          docker exec rag-frontend curl -f -s http://backend:5000/api/hello
-      - name: Test internal network communication - response content
-        run: |
-          # Test that backend returns expected response
-          response=$(docker exec rag-frontend curl -s http://backend:5000/api/hello)
-          echo "Backend response: $response"
-          echo "$response" | grep -q '"message":"Hello from Flask backend"'
-      - name: Test container network isolation
-        run: |
-          # Verify containers are on the custom network
-          docker network inspect rag_rag-network
-          # Check that containers can resolve each other by name
-          docker exec rag-backend nslookup frontend
-          docker exec rag-frontend nslookup backend
-=======
           for i in {1..10}; do
             curl -s http://127.0.0.1:5000/api/hello && break || sleep 3
           done
@@ -56,6 +33,12 @@ jobs:
         run: curl -s http://127.0.0.1:5000/api/hello | grep -q "Hello from Flask backend"
       - name: Test frontend endpoint
         run: curl -s http://127.0.0.1:5173 | grep -q 'RAG Pipeline Frontend'
->>>>>>> ff408891c74245150ff22e9134aadadc960a2a79
+      - name: Test container network isolation
+        run: |
+          # Verify containers are on the custom network
+          docker network inspect rag_rag-network
+          # Check that containers can resolve each other by name
+          docker exec rag-backend nslookup frontend
+          docker exec rag-frontend nslookup backend
       - name: Stop containers
         run: docker-compose down
