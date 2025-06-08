@@ -30,7 +30,7 @@ jobs:
             curl -s http://127.0.0.1:5000/api/hello && break || sleep 3
           done
       - name: Test backend endpoint
-        run: curl -s http://127.0.0.1:5000/api/hello | grep -q 'Hello from Flask backend'
+        run: curl -s http://127.0.0.1:5000/api/hello | grep -q "Hello from Flask backend"
       - name: Test frontend endpoint
         run: curl -s http://127.0.0.1:5173 | grep -q 'RAG Pipeline Frontend'
       - name: Stop containers
