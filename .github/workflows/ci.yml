@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  start-up-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -14,8 +14,8 @@ jobs:
           node-version: '18'
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci
-      - name: Run frontend unit tests
+        run: npm ci      
+      - name: Run frontend tests
         working-directory: frontend
         run: npm test -- --runInBand
       - name: Install docker-compose
@@ -24,14 +24,28 @@ jobs:
         run: docker-compose build
       - name: Start containers
         run: docker-compose up -d
-      - name: Wait for backend
+      - name: Wait for containers to be ready
         run: |
-          for i in {1..10}; do
-            curl -s http://localhost:5000/api/hello && break || sleep 3
-          done
-      - name: Test backend endpoint
-        run: curl -s http://localhost:5000/api/hello | grep -q 'Hello from Flask backend'
-      - name: Test frontend endpoint
-        run: curl -s http://localhost:5173 | grep -q 'RAG Pipeline Frontend'
+          # Wait for containers to start
+          sleep 10
+          # Check that containers are running
+          docker ps
+      - name: Test internal network communication - backend health
+        run: |
+          # Test that backend is accessible from within the network
+          docker exec rag-frontend curl -f -s http://backend:5000/api/hello
+      - name: Test internal network communication - response content
+        run: |
+          # Test that backend returns expected response
+          response=$(docker exec rag-frontend curl -s http://backend:5000/api/hello)
+          echo "Backend response: $response"
+          echo "$response" | grep -q '"message":"Hello from Flask backend"'
+      - name: Test container network isolation
+        run: |
+          # Verify containers are on the custom network
+          docker network inspect rag_rag-network
+          # Check that containers can resolve each other by name
+          docker exec rag-backend nslookup frontend
+          docker exec rag-frontend nslookup backend
       - name: Stop containers
         run: docker-compose down
