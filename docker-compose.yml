@@ -20,3 +20,15 @@ services:
       - VITE_BACKEND_URL=http://127.0.0.1:5000  # Use service name for internal communication
     ports:
       - 5173:5173
+
+  database:
+    image: postgres:latest
+    container_name: rag-database
+    environment:
+      - POSTGRES_USER=raguser
+      - POSTGRES_PASSWORD=ragpassword
+      - POSTGRES_DB=ragdb
+    ports:
+      - 5432:5432
+    volumes:
+      - ./rag-db-data:/var/lib/postgresql/data
