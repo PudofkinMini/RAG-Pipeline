@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Dict
 import transformers
 import torch
+import copy
 
 
 class DocumentChunker(ABC):
@@ -24,23 +25,34 @@ class DocumentChunker(ABC):
         original location in the document with the `location_id` (e.g. page number).
         """
 
-        def __init__(self, tokenized_text: torch.Tensor, location_id: str):
-            self.tokenized_text = tokenized_text
+        def __init__(
+            self,
+            input_ids: torch.Tensor,
+            attention_mask: torch.Tensor,
+            input_type_ids: torch.Tensor,
+            location_id: str,
+        ):
+            self.input_ids = input_ids
+            self.attention_mask = attention_mask
+            self.token_type_ids = input_type_ids
             self.location_id = location_id
 
         def copy(self) -> "DocumentChunker._DocumentChunkPart":
-            return DocumentChunker._DocumentChunkPart(
-                tokenized_text=self.tokenized_text.clone(),
-                location_id=self.location_id,
-            )
+            return copy.deepcopy(self)
 
         def decode(self, tokenizer: transformers.PreTrainedTokenizer) -> str:
             """
             Decodes the tokenized text back to a string.
             """
             return tokenizer.decode(
-                self.tokenized_text[0], skip_special_tokens=True
+                self.input_ids[0], skip_special_tokens=True
             )
+
+        def get_length(self) -> int:
+            """
+            Returns the number of tokens in the part.
+            """
+            return self.input_ids.shape[1]
 
     class _DocumentChunk:
         """
@@ -70,7 +82,7 @@ class DocumentChunker(ABC):
                 # and add them to the current chunk until we reach the limit
                 for part in previous_chunk.parts[::-1]:
                     if (
-                        self.get_length() + part.tokenized_text.shape[1]
+                        self.get_length() + part.get_length()
                         <= n_tokens_to_inherit
                     ):
                         self.parts = [
@@ -80,7 +92,15 @@ class DocumentChunker(ABC):
                         n_tokens_left = n_tokens_to_inherit - self.get_length()
                         self.parts = [
                             DocumentChunker._DocumentChunkPart(
-                                tokenized_text=part.tokenized_text[
+                                input_ids=part.input_ids[
+                                    :,
+                                    -n_tokens_left:,
+                                ],
+                                attention_mask=part.attention_mask[
+                                    :,
+                                    -n_tokens_left:,
+                                ],
+                                input_type_ids=part.token_type_ids[
                                     :,
                                     -n_tokens_left:,
                                 ],
@@ -88,12 +108,6 @@ class DocumentChunker(ABC):
                             ),
                         ] + self.parts
                         break
-
-        def get_text(self) -> str:
-            """
-            Returns the full text of the chunk by concatenating all parts.
-            """
-            return " ".join(part.text for part in self.parts)
 
         def add_part(self, part: "DocumentChunker._DocumentChunkPart"):
             """
@@ -107,7 +121,7 @@ class DocumentChunker(ABC):
             """
             Returns the total number of tokens in the chunk.
             """
-            return sum(part.tokenized_text.shape[1] for part in self.parts)
+            return sum(part.get_length() for part in self.parts)
 
         def copy(self) -> "DocumentChunker._DocumentChunk":
             """
@@ -122,6 +136,19 @@ class DocumentChunker(ABC):
             Decodes the chunk's parts back to a string.
             """
             return " ".join(part.decode(tokenizer) for part in self.parts)
+
+        def get_tokens(self) -> Dict[str, torch.Tensor]:
+            return {
+                "input_ids": torch.cat(
+                    [part.input_ids for part in self.parts], dim=1
+                ),
+                "attention_mask": torch.cat(
+                    [part.attention_mask for part in self.parts], dim=1
+                ),
+                "token_type_ids": torch.cat(
+                    [part.token_type_ids for part in self.parts], dim=1
+                ),
+            }
 
     def __init__(self, document_path: str):
         """
