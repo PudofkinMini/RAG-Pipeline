@@ -1,15 +1,15 @@
-import psycopg
+import psycopg2
 import numpy as np
 
 # Database connection parameters
-DB_NAME = "ragdb"   
+DB_NAME = "ragdb"
 DB_USER = "raguser"
 DB_PASSWORD = "ragpassword"
 DB_HOST = "localhost"
 DB_PORT = "5432"
 
 # Connect to PostgreSQL
-conn = psycopg.connect(
+conn = psycopg2.connect(
     dbname=DB_NAME,
     user=DB_USER,
     password=DB_PASSWORD,
